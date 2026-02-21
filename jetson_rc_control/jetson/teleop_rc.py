@@ -20,7 +20,25 @@ import sys
 import time
 import argparse
 import pygame
-import serial
+
+# Import pyserial with error handling for common installation issues
+try:
+    import serial
+    # Verify it's the correct pyserial module
+    if not hasattr(serial, 'Serial'):
+        raise ImportError("Wrong serial module - pyserial not installed correctly")
+except ImportError as e:
+    print("=" * 70)
+    print("ERROR: pyserial is not properly installed!")
+    print("=" * 70)
+    print("\nThe 'serial' module was found, but it's not the pyserial library.")
+    print("\nTo fix this, run these commands:")
+    print("  1. pip uninstall serial")
+    print("  2. pip install pyserial")
+    print("\nOr in one command:")
+    print("  pip uninstall serial -y && pip install pyserial")
+    print("\n" + "=" * 70)
+    sys.exit(1)
 
 # =============================================================================
 # Configuration Constants

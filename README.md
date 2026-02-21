@@ -12,7 +12,13 @@ This project is organized into independent, reusable modules that can be integra
 SDP/
 ├── jetson_rc_control/         # Jetson-to-RC Car control module
 │   ├── arduino/               # Arduino firmware
+│   │   └── rc_bridge.ino      # PWM control sketch
 │   ├── jetson/                # Jetson Python scripts
+│   │   ├── teleop_rc.py       # Teleoperation script
+│   │   ├── requirements.txt   # Python dependencies
+│   │   ├── install_dependencies.sh   # Linux installer
+│   │   ├── install_dependencies.bat  # Windows installer
+│   │   └── README.md          # Jetson setup guide
 │   └── README.md              # Module documentation
 └── README.md                  # This file
 ```

@@ -12,7 +12,19 @@ This Python script reads USB gamepad input and sends PWM commands to an Arduino 
 
 ### Software Dependencies
 
+**Quick Install (Recommended):**
+
 ```bash
+# Use the provided installation script
+chmod +x install_dependencies.sh
+./install_dependencies.sh
+```
+
+**Or install manually:**
+
+```bash
+pip3 install -r requirements.txt
+# Or directly:
 pip3 install pygame pyserial
 ```
 
@@ -88,11 +100,28 @@ This method doesn't require editing the script.
 
 ### Step 1: Install Dependencies
 
+**Using installation script (recommended):**
+
+```bash
+chmod +x install_dependencies.sh
+./install_dependencies.sh
+```
+
+This script will:
+- Remove conflicting `serial` package
+- Install `pygame` and `pyserial` from requirements.txt
+- Add your user to the `dialout` group for serial permissions
+
+**Manual installation:**
+
 ```bash
 # Update pip
 pip3 install --upgrade pip
 
-# Install required packages
+# Install from requirements file
+pip3 install -r requirements.txt
+
+# Or install packages directly
 pip3 install pygame pyserial
 
 # Verify installation

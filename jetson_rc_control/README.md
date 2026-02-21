@@ -128,6 +128,9 @@ jetson_rc_control/
 │   └── rc_bridge.ino          # Arduino firmware
 ├── jetson/
 │   ├── teleop_rc.py           # Jetson teleoperation script
+│   ├── requirements.txt       # Python dependencies
+│   ├── install_dependencies.bat   # Windows installer
+│   ├── install_dependencies.sh    # Linux/Jetson installer
 │   └── README.md              # Detailed Jetson setup
 └── README.md                  # This file
 ```
@@ -145,7 +148,22 @@ jetson_rc_control/
 
 ### 2. Jetson Setup
 
-#### Install Dependencies
+#### Quick Install (Recommended)
+
+**On Linux/Jetson:**
+```bash
+cd jetson_rc_control/jetson
+chmod +x install_dependencies.sh
+./install_dependencies.sh
+```
+
+**On Windows (for testing):**
+```powershell
+cd jetson_rc_control\jetson
+.\install_dependencies.bat
+```
+
+#### Manual Install
 
 ```bash
 # Install Python packages
