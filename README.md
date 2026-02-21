@@ -37,7 +37,7 @@ A complete teleoperation system for controlling RC vehicles using a Jetson board
 - Safety timeout and emergency stop
 - Configurable control mapping
 
-**Status:** ✅ Operational
+**Status:** ⚠️  To be tested 
 
 See [jetson_rc_control/README.md](jetson_rc_control/README.md) for full documentation.
 
@@ -85,10 +85,6 @@ Planned additions:
 - Localization module
 - Communication interface
 
-## License
-
-This project is provided for educational and research purposes.
-
 ## Contributing
 
 When adding new modules:
@@ -97,11 +93,3 @@ When adding new modules:
 3. Document all dependencies
 4. Provide testing procedures
 5. Follow existing module patterns
-
-## Safety Notice
-
-⚠️ **Important:** These systems control physical hardware. Always:
-- Test in safe, controlled environments
-- Implement emergency stop mechanisms
-- Follow module-specific safety guidelines
-- Ensure proper grounding and power management
