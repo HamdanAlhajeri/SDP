@@ -1,16 +1,17 @@
 @echo off
 REM Installation script for Jetson RC Control dependencies
-REM Run this on Windows before testing the script
+REM Note: This is for development/testing only
+REM Jetson.GPIO will not work on Windows - this is for syntax checking
 
 echo ========================================
 echo Installing RC Control Dependencies
 echo ========================================
 echo.
 
-echo Uninstalling conflicting 'serial' package...
-pip uninstall serial -y
-
+echo NOTE: Jetson.GPIO will not function on Windows!
+echo This script is for installing pygame for development/testing only.
 echo.
+
 echo Installing required packages from requirements.txt...
 pip install -r requirements.txt
 
@@ -19,6 +20,7 @@ echo ========================================
 echo Installation Complete!
 echo ========================================
 echo.
-echo You can now run: python teleop_rc.py
+echo WARNING: This script requires Jetson hardware to run with GPIO.
+echo For actual testing, deploy to Jetson and run with sudo.
 echo.
 pause

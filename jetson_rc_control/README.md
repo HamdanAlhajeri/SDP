@@ -1,6 +1,6 @@
 # Jetson-to-RC Car Control System
 
-Minimal working system for controlling a Traxxas RC car using a Jetson board and Arduino via USB gamepad teleoperation.
+Direct GPIO control system for controlling a Traxxas RC car using a Jetson board and USB gamepad teleoperation. **No Arduino required!**
 
 > **Module:** This is a standalone control module within the larger SDP robotics project. It can be used independently or integrated into autonomous vehicle systems.
 
@@ -8,49 +8,77 @@ Minimal working system for controlling a Traxxas RC car using a Jetson board and
 
 **Data Flow:**
 ```
-USB Gamepad → Jetson (Python) → Arduino (Serial) → PWM Signals → RC Car (Servo + ESC)
+USB Gamepad → Jetson (Python + GPIO PWM) → RC Car (Servo + ESC)
 ```
+
+The Jetson generates 50Hz PWM signals directly from its GPIO pins to control the steering servo and ESC, eliminating the need for an Arduino middleman.
 
 ## Hardware Requirements
 
 - **Jetson Board** (Nano/Xavier/Orin with Linux + Python 3)
-- **Arduino Uno/Nano** (connected to Jetson via USB)
 - **USB Gamepad** (Xbox/PlayStation/Generic)
 - **Traxxas RC Car** with:
   - 1× Steering servo
   - 1× ESC (Electronic Speed Controller)
+- **5-6V Power Supply** for servo (ESC BEC or external regulator)
 
 ### Wiring Connections
 
-#### Overview Table
+#### Jetson GPIO Pin Connections
 
-| Component | Connection | Arduino Pin |
-|-----------|------------|-------------|
-| Steering Servo Signal Wire | → | Digital Pin D9 |
-| ESC (Motor Controller) Signal Wire | → | Digital Pin D10 |
-| Common Ground | → | GND Pin |
-| Servo Power (5V) | ← | From ESC BEC |
+**Direct PWM Control via GPIO**
+
+The Jetson generates PWM signals directly from GPIO pins - no Arduino needed:
+
+| Jetson Component | Connection | Notes |
+|------------------|------------|-------|
+| **Pin 32 (PWM0)** | Steering servo signal | 3.3V PWM signal output |
+| **Pin 33 (PWM2)** | ESC signal | 3.3V PWM signal output |
+| **Pin 34 (GND)** | Common ground | Shared with servo/ESC |
+| **DC Power Input** | 5V Barrel Jack or USB-C | Powers the Jetson board |
+
+**Jetson Nano 40-Pin Header (simplified):**
+```
+         3V3  (1) (2)  5V
+       GPIO2  (3) (4)  5V
+       GPIO3  (5) (6)  GND
+       GPIO4  (7) (8)  GPIO14
+         GND  (9) (10) GPIO15
+         ... ... ...
+   PWM0/GPIO13 (32) (33) GPIO19/PWM2  ← Signal pins for servo/ESC
+      GPIO6 (34) (35) GPIO26
+         ... ... ...
+```
+
+#### RC Car Wiring
+
+| Component | Connection | Jetson Pin / Notes |
+|-----------|------------|-------------------|
+| Steering Servo Signal Wire | → | Jetson Pin 32 (PWM0) |
+| ESC Signal Wire | → | Jetson Pin 33 (PWM2) |
+| Common Ground | → | Jetson Pin 34 (GND) |
+| Servo Power (5V) | ← | ESC BEC or external 5-6V supply |
 
 #### Detailed Wiring Guide
 
 **1. Steering Servo (3 wires)**
 
 Standard servo wire colors:
-- **Orange/Yellow/White** = Signal wire → Connect to Arduino **Pin D9**
-- **Red** = Power (5V) → Connect to ESC BEC 5V output OR Arduino 5V pin
-- **Brown/Black** = Ground → Connect to Arduino **GND** pin
+- **Orange/Yellow/White** = Signal wire → Connect to Jetson **Pin 32**
+- **Red** = Power (5V) → Connect to ESC BEC 5V output OR external 5V regulator
+- **Brown/Black** = Ground → Connect to Jetson **Pin 34 (GND)**
 
-**2. ESC - Electronic Speed Controller (3 wires to Arduino)**
+**2. ESC - Electronic Speed Controller (3 wires)**
 
 The ESC has a 3-wire servo connector:
-- **White/Yellow** = Signal wire → Connect to Arduino **Pin D10**
-- **Red** = Power output (BEC 5V) → Can power servo, do NOT connect to Arduino 5V
-- **Black/Brown** = Ground → Connect to Arduino **GND** pin
+- **White/Yellow** = Signal wire → Connect to Jetson **Pin 33**
+- **Red** = Power output (BEC 5V) → Can power servo, do NOT connect to Jetson
+- **Black/Brown** = Ground → Connect to Jetson **Pin 34 (GND)**
 
 **3. Ground Connections**
 
 ⚠️ **CRITICAL:** All grounds must be connected together:
-- Arduino GND pin
+- Jetson GND pin (Pin 34)
 - ESC ground wire (black)
 - Servo ground wire (black/brown)
 - RC car battery ground (via ESC)
@@ -62,62 +90,63 @@ This creates a common ground reference for all PWM signals.
 - **ESC to Motor:** ESC main power wires connect to RC car motor (thick wires)
 - **ESC to Battery:** ESC input connects to RC car battery pack
 - **BEC (Battery Eliminator Circuit):** ESC provides 5V output via red wire to power servo
-- **Arduino Power:** Arduino powered via USB from Jetson (no additional power needed)
+- **Jetson Power:** Jetson powered via 5V DC adapter (barrel jack or USB-C)
+- **⚠️ Never connect servo/ESC 5V power to Jetson pins!**
 
 #### Physical Connection Steps
 
-1. **Locate Arduino Pins:**
-   - Pin D9 (Digital pin 9)
-   - Pin D10 (Digital pin 10)  
-   - GND pin (any ground pin)
+1. **Power the Jetson:**
+   - Connect 5V DC power adapter to Jetson's barrel jack or USB-C port
+   - Ensure adequate power supply (typically 5V 4A for Jetson Nano)
 
-2. **Connect Steering Servo:**
+2. **Connect USB gamepad** to Jetson USB port
+
+3. **Locate Jetson GPIO Pins:**
+   - Pin 32 (PWM0 - for steering)
+   - Pin 33 (PWM2 - for throttle)
+   - Pin 34 (GND - for common ground)
+
+4. **Connect Steering Servo:**
    ```
-   Servo 3-pin connector → Arduino
-   [Orange] Signal -----> D9
-   [Red]    5V     -----> (From ESC BEC or Arduino 5V)
-   [Brown]  GND    -----> GND
+   Servo 3-pin connector → Jetson
+   [Orange] Signal -----> Pin 32
+   [Red]    5V     -----> (From ESC BEC or external 5V - NOT Jetson!)
+   [Brown]  GND    -----> Pin 34 (GND)
    ```
 
-3. **Connect ESC:**
+5. **Connect ESC:**
    ```
-   ESC 3-pin connector → Arduino
-   [White]  Signal -----> D10
+   ESC 3-pin connector → Jetson
+   [White]  Signal -----> Pin 33
    [Red]    5V BEC -----> (Optional: to servo power)
-   [Black]  GND    -----> GND
+   [Black]  GND    -----> Pin 34 (GND)
    ```
 
-4. **Connect ESC to Motor:**
+6. **Connect ESC to Motor:**
    - ESC thick wires → RC car brushed motor (2 or 3 wires)
    - If motor spins backward, swap any two motor wires
 
-5. **Connect Power:**
+7. **Connect Power:**
    - ESC battery connector → RC car battery/power source
-   - Arduino → USB cable to Jetson
+   - Jetson → 5V DC adapter (already done in step 1)
 
 #### Wiring Diagram (Text)
 
 ```
-                    Arduino Uno/Nano
-                   ┌─────────────────┐
-    Steering       │                 │
-    Servo ────────>│ D9 (PWM)        │
-   [Signal]        │                 │
-                   │                 │
-    ESC ──────────>│ D10 (PWM)       │
-   [Signal]        │                 │
-                   │                 │
-    Common ───────>│ GND             │<───── ESC [Black]
-    Ground         │                 │       Servo [Brown]
-                   │                 │
-    USB to   <────>│ USB Port        │
-    Jetson         └─────────────────┘
-                           │
-                           │ USB Cable
-                           ↓
-                    Jetson Board
-                           ↑
-                    USB Gamepad
+    Steering Servo          Jetson GPIO Header
+    [Signal] ─────────────> Pin 32 (PWM0)
+    [5V Power] ←─────┐
+    [Ground] ─────────┼───> Pin 34 (GND)
+                      │
+    ESC               │
+    [Signal] ─────────┼───> Pin 33 (PWM2)
+    [BEC 5V] ─────────┘
+    [Ground] ─────────────> (Common GND)
+    
+    [Motor Wires] ──> Brushed Motor
+    [Battery] ──────> RC Car Battery
+    
+    USB Gamepad ──────────> Jetson USB Port
 ```
 
 ## Module Structure
@@ -125,9 +154,9 @@ This creates a common ground reference for all PWM signals.
 ```
 jetson_rc_control/
 ├── arduino/
-│   └── rc_bridge.ino          # Arduino firmware
+│   └── rc_bridge.ino          # Legacy Arduino firmware (no longer needed)
 ├── jetson/
-│   ├── teleop_rc.py           # Jetson teleoperation script
+│   ├── teleop_rc.py           # Jetson teleoperation script (GPIO PWM)
 │   ├── requirements.txt       # Python dependencies
 │   ├── install_dependencies.bat   # Windows installer
 │   ├── install_dependencies.sh    # Linux/Jetson installer
@@ -137,16 +166,7 @@ jetson_rc_control/
 
 ## Setup Instructions
 
-### 1. Arduino Setup
-
-1. Open [arduino/rc_bridge.ino](arduino/rc_bridge.ino) in Arduino IDE
-2. Select your Arduino board (Tools → Board)
-3. Select the correct COM port (Tools → Port)
-4. Upload the sketch to Arduino
-5. Verify in Serial Monitor (115200 baud):
-   - Should see "RC Bridge Initialized"
-
-### 2. Jetson Setup
+### 1. Jetson Setup
 
 #### Quick Install (Recommended)
 
@@ -157,7 +177,7 @@ chmod +x install_dependencies.sh
 ./install_dependencies.sh
 ```
 
-**On Windows (for testing):**
+**On Windows (for testing without hardware):**
 ```powershell
 cd jetson_rc_control\jetson
 .\install_dependencies.bat
@@ -167,19 +187,10 @@ cd jetson_rc_control\jetson
 
 ```bash
 # Install Python packages
-pip3 install pygame pyserial
+sudo pip3 install pygame Jetson.GPIO
 
-# Optional: Add user to dialout group for serial permissions
-sudo usermod -aG dialout $USER
-# Log out and back in for changes to take effect
-```
-
-#### Find Arduino Serial Port
-
-```bash
-# List USB serial devices
-ls /dev/ttyACM*  # Usually /dev/ttyACM0
-ls /dev/ttyUSB*  # Or /dev/ttyUSB0
+# Verify installation
+python3 -c "import pygame, Jetson.GPIO; print('Dependencies OK')"
 ```
 
 #### Make Script Executable (Optional)
@@ -188,39 +199,42 @@ ls /dev/ttyUSB*  # Or /dev/ttyUSB0
 chmod +x jetson/teleop_rc.py
 ```
 
-### 3. Hardware Connection
+### 2. Hardware Connection
 
-1. Connect Arduino to Jetson via USB
-2. Connect steering servo signal wire to Arduino pin D9
-3. Connect ESC signal wire to Arduino pin D10
-4. Ensure common ground between ESC, servo, and Arduino
-5. Power on the RC car (ESC should arm after 2 seconds)
-6. Connect USB gamepad to Jetson
+1. Power on the Jetson
+2. Connect steering servo signal wire to Jetson **Pin 32**
+3. Connect ESC signal wire to Jetson **Pin 33**
+4. Connect common ground: Jetson **Pin 34** to servo/ESC grounds
+5. Ensure servo has 5-6V power from ESC BEC or external supply
+6. Power on the RC car (ESC should arm and recognize PWM signal)
+7. Connect USB gamepad to Jetson
 
 ## Running the System
 
 ### Basic Usage
 
+**Note:** Requires sudo for GPIO access
+
 ```bash
 cd jetson
-python3 teleop_rc.py
+sudo python3 teleop_rc.py
 ```
 
-### With Custom Serial Port
+### With Custom GPIO Pins
 
 ```bash
-python3 teleop_rc.py --port /dev/ttyUSB0
+sudo python3 teleop_rc.py --steer-pin 32 --throttle-pin 33
 ```
 
 ### Command Line Options
 
 ```bash
-python3 teleop_rc.py --help
+sudo python3 teleop_rc.py --help
 ```
 
 Options:
-- `--port`: Serial port (default: `/dev/ttyACM0`)
-- `--baud`: Baud rate (default: `115200`)
+- `--steer-pin`: GPIO pin for steering (BOARD numbering, default: `32`)
+- `--throttle-pin`: GPIO pin for throttle (BOARD numbering, default: `33`)
 - `--deadzone`: Joystick deadzone (default: `0.1`)
 
 ## Controls
@@ -236,7 +250,7 @@ Options:
 ### 1. Neutral Behavior Test
 - Start the system with joystick centered
 - **Expected:** Wheels straight, motor off
-- **Values:** Steering = 1500µs, Throttle = 1500µs
+- **Values:** Steering = 1500µs (7.5% duty), Throttle = 1500µs (7.5% duty)
 
 ### 2. Steering Test
 - Move left stick left/right
@@ -252,33 +266,34 @@ Options:
 
 ### 4. Emergency Stop Test
 - While running, press Ctrl+C
-- **Expected:** Neutral command sent, motor stops immediately
+- **Expected:** Neutral PWM set, motor stops immediately, GPIO cleaned up
 
-## Serial Protocol
+## PWM Signal Details
 
-**Format:** `S<steer_us> T<throttle_us>\n`
+**Frequency:** 50 Hz (20ms period)
 
-**Example:** `S1500 T1600\n`
+**Pulse Width Range:** 1000–2000 microseconds
 
-**Range:** 1000–2000 microseconds
+**Signal Level:** 3.3V (Jetson GPIO output)
 
-| Value | Meaning |
-|-------|---------|
-| 1000µs | Full left / Full reverse |
-| 1500µs | Neutral / Center |
-| 2000µs | Full right / Full forward |
+| Value | Duty Cycle | Meaning |
+|-------|------------|---------|
+| 1000µs | 5.0% | Full left / Full reverse |
+| 1500µs | 7.5% | Neutral / Center |
+| 2000µs | 10.0% | Full right / Full forward |
 
 ## Safety Features
 
-### Arduino
-- **Timeout Protection:** If no serial data for >500ms, throttle gradually returns to neutral (1500µs)
+### GPIO Control
+- **Emergency Stop:** Ctrl+C sets neutral PWM (1500µs) before cleanup
 - **Input Clamping:** All PWM values clamped to safe range [1000, 2000]
-- **Malformed Command Handling:** Invalid commands ignored; last known values maintained
+- **GPIO Cleanup:** Proper GPIO cleanup on exit to prevent pin conflicts
 
 ### Python Script
-- **Emergency Stop:** Ctrl+C sends neutral command before exit
+- **Emergency Stop:** Ctrl+C sends neutral position before GPIO cleanup
 - **Deadzone:** Small joystick movements (<0.1) ignored to prevent drift
 - **Input Clamping:** Axis values clamped before conversion
+- **Root Check:** Script verifies GPIO permissions at startup
 
 ## Troubleshooting
 
@@ -291,19 +306,35 @@ ERROR: No joystick/gamepad found!
 ls /dev/input/js*
 ```
 
-### Serial Port Error
+### GPIO Permission Error
 ```
-ERROR: Failed to open serial port
+ERROR: GPIO access denied!
 ```
+**Solution:** Run with sudo:
+```bash
+sudo python3 teleop_rc.py
+```
+
+### Jetson.GPIO Not Installed
+```
+ERROR: Jetson.GPIO is not installed!
+```
+**Solution:** Install with sudo:
+```bash
+sudo pip3 install Jetson.GPIO
+```
+
+### Servo/ESC Not Responding
 **Solutions:**
-- Check Arduino is connected: `ls /dev/ttyACM*`
-- Verify user permissions: `sudo usermod -aG dialout $USER` (then log out/in)
-- Try different port with `--port` option
+- Verify wiring: Pin 32 for steering, Pin 33 for throttle
+- Check common ground connection between Jetson and RC electronics
+- Ensure servo has external 5-6V power (not from Jetson!)
+- Verify PWM signal with oscilloscope (3.3V, 50Hz, 1-2ms pulse)
 
 ### ESC Not Arming
 **Solutions:**
-- Verify neutral signal (1500µs) on startup
-- Check ESC power and connections
+- Verify neutral signal (1500µs / 7.5% duty) on startup
+- Check ESC power and battery connections
 - Consult ESC manual for arming procedure
 - Some ESCs require full throttle → neutral sequence
 

@@ -1,14 +1,17 @@
 # Jetson RC Car Teleoperation Script
 
-This Python script reads USB gamepad input and sends PWM commands to an Arduino via serial connection to control a Traxxas RC car.
+This Python script reads USB gamepad input and generates PWM signals directly from Jetson GPIO pins to control a Traxxas RC car. No Arduino required!
 
 ## Prerequisites
 
 ### Hardware
 - Jetson board (Nano/Xavier/Orin) running Linux
 - USB gamepad (Xbox, PlayStation, or generic controller)
-- Arduino Uno/Nano connected via USB cable
-- RC car with servo and ESC connected to Arduino
+- RC car with servo and ESC
+- **Wiring:**
+  - Servo signal wire → Jetson GPIO Pin 32 (PWM0)
+  - ESC signal wire → Jetson GPIO Pin 33 (PWM2)
+  - Common ground between RC car battery/ESC and Jetson GND
 
 ### Software Dependencies
 
@@ -23,78 +26,67 @@ chmod +x install_dependencies.sh
 **Or install manually:**
 
 ```bash
-pip3 install -r requirements.txt
+sudo pip3 install -r requirements.txt
 # Or directly:
-pip3 install pygame pyserial
+sudo pip3 install pygame Jetson.GPIO
 ```
 
-## Serial Port Configuration
+**Note:** Jetson.GPIO requires root privileges, so use `sudo` for installation.
 
-### Understanding Serial Ports
+## GPIO Pin Configuration
 
-The script communicates with the Arduino through a serial port. On Linux systems, USB-connected Arduinos typically appear as:
+### Default Pin Assignment (BOARD Numbering)
 
-- **`/dev/ttyACM0`** - Most Arduino Uno/Nano boards (default in script)
-- **`/dev/ttyUSB0`** - Some Arduino clones with CH340/CP2102 USB chips
-- **`/dev/ttyACM1`**, **`/dev/ttyUSB1`**, etc. - If multiple devices are connected
+| Function | GPIO Pin | PWM Channel | Wire Color (typical) |
+|----------|----------|-------------|---------------------|
+| Steering | Pin 32   | PWM0        | White/Yellow        |
+| Throttle | Pin 33   | PWM2        | White/Yellow        |
+| Ground   | Pin 6/14/20/30/34/39 | GND | Brown/Black |
 
-### Finding Your Arduino Port
-
-#### Method 1: List All USB Serial Devices
-
-```bash
-# Before connecting Arduino
-ls /dev/tty*
-
-# After connecting Arduino
-ls /dev/tty*
-
-# Look for new ttyACM* or ttyUSB* device
+**Pin Layout Reference (Jetson Nano 40-pin header):**
+```
+         3V3  (1) (2)  5V
+       GPIO2  (3) (4)  5V
+       GPIO3  (5) (6)  GND
+       GPIO4  (7) (8)  GPIO14
+         GND  (9) (10) GPIO15
+      GPIO17 (11) (12) GPIO18
+      GPIO27 (13) (14) GND
+      GPIO22 (15) (16) GPIO23
+         3V3 (17) (18) GPIO24
+      GPIO10 (19) (20) GND
+       GPIO9 (21) (22) GPIO25
+      GPIO11 (23) (24) GPIO8
+         GND (25) (26) GPIO7
+        ...
+   PWM0/GPIO13 (32) (33) GPIO19/PWM2  ← Use these!
+         GPIO6 (34) (35) GPIO26
+      GPIO16  (36) (37) GPIO20
+         GND (38) (39) GPIO21
 ```
 
-#### Method 2: Using dmesg
+### Wiring Instructions
 
-```bash
-# Connect Arduino and immediately run:
-dmesg | tail
+1. **Locate the servo connector** (3-wire):
+   - Signal (usually white/yellow/orange)
+   - Power (usually red) - DO NOT connect to Jetson!
+   - Ground (usually brown/black)
 
-# Look for lines like:
-# [  123.456] cdc_acm 1-3:1.0: ttyACM0: USB ACM device
-# [  123.456] ch341 1-3:1.0: ch341-uart converter now attached to ttyUSB0
-```
+2. **Connect steering servo:**
+   - Signal wire → Jetson Pin 32
+   - Ground wire → Jetson GND (Pin 34 recommended, close to PWM pins)
+   - Power wire → ESC BEC or external 5-6V power supply
 
-#### Method 3: Quick Check
+3. **Connect ESC:**
+   - Signal wire → Jetson Pin 33
+   - Ground wire → Same ground as servo (shared ground)
+   - Power wires → RC car battery (as normal)
 
-```bash
-# List Arduino-specific ports
-ls /dev/ttyACM*  # For standard Arduino
-ls /dev/ttyUSB*  # For clone boards
-```
-
-### Setting the Serial Port
-
-#### Option 1: Default Port (Edit Script)
-
-Edit [teleop_rc.py](teleop_rc.py) line 29:
-
-```python
-SERIAL_PORT = "/dev/ttyACM0"  # Change this to your port
-```
-
-Common alternatives:
-```python
-SERIAL_PORT = "/dev/ttyUSB0"   # For CH340 Arduino clones
-SERIAL_PORT = "/dev/ttyACM1"   # If multiple Arduinos connected
-```
-
-#### Option 2: Command Line Argument (Recommended)
-
-```bash
-# Use --port flag to override default
-python3 teleop_rc.py --port /dev/ttyUSB0
-```
-
-This method doesn't require editing the script.
+4. **Important safety notes:**
+   - Never connect servo/ESC power (red wire) to Jetson 3.3V or 5V pins
+   - Always connect grounds together (Jetson GND + ESC/servo GND)
+   - 3.3V signal from Jetson is sufficient for most RC servos/ESCs
+   - Double-check polarity before powering on
 
 ## Setup Instructions
 
@@ -108,64 +100,51 @@ chmod +x install_dependencies.sh
 ```
 
 This script will:
-- Remove conflicting `serial` package
-- Install `pygame` and `pyserial` from requirements.txt
-- Add your user to the `dialout` group for serial permissions
+- Install `pygame` and `Jetson.GPIO` from requirements.txt
+- Verify GPIO permissions
 
 **Manual installation:**
 
 ```bash
 # Update pip
-pip3 install --upgrade pip
+sudo pip3 install --upgrade pip
 
 # Install from requirements file
-pip3 install -r requirements.txt
+sudo pip3 install -r requirements.txt
 
 # Or install packages directly
-pip3 install pygame pyserial
+sudo pip3 install pygame Jetson.GPIO
 
 # Verify installation
-python3 -c "import pygame, serial; print('Dependencies OK')"
+python3 -c "import pygame, Jetson.GPIO; print('Dependencies OK')"
 ```
 
-### Step 2: Set Serial Permissions
+### Step 2: Connect Hardware
 
-By default, serial ports require root access. Add your user to the `dialout` group:
+1. **Connect servo signal wires to Jetson GPIO:**
+   - Steering servo signal → Pin 32
+   - ESC signal → Pin 33
+   - Both grounds → Common Jetson GND pin (Pin 34 recommended)
+   
+2. **Power connections:**
+   - Servo power (red wire) → ESC BEC or external 5-6V supply
+   - ESC power → RC car battery (as normal)
+   - **Never connect servo/ESC power to Jetson pins!**
 
-```bash
-# Add current user to dialout group
-sudo usermod -aG dialout $USER
+3. **Connect USB gamepad** to Jetson
 
-# Verify group membership
-groups $USER
-
-# IMPORTANT: Log out and log back in for changes to take effect
-```
-
-Alternative (temporary, requires password each time):
-```bash
-sudo chmod 666 /dev/ttyACM0  # Replace with your port
-```
-
-### Step 3: Connect Hardware
-
-1. **Connect Arduino to Jetson** via USB cable
-2. **Verify Arduino connection:**
-   ```bash
-   ls -l /dev/ttyACM0  # Should show the device
-   ```
-3. **Upload Arduino firmware** ([arduino/rc_bridge.ino](../arduino/rc_bridge.ino))
-4. **Connect USB gamepad** to Jetson
-5. **Verify gamepad connection:**
+4. **Verify gamepad connection:**
    ```bash
    ls /dev/input/js*  # Should show joystick device
    ```
 
-### Step 4: Test the Script
+### Step 3: Test the Script
+
+**Important:** The script requires root privileges to access GPIO pins.
 
 ```bash
-cd ~/Desktop/SDP/jetson
-python3 teleop_rc.py
+cd ~/Desktop/SDP/jetson_rc_control/jetson
+sudo python3 teleop_rc.py
 ```
 
 Expected output:
@@ -174,8 +153,11 @@ Initializing pygame...
 Found joystick: Xbox Wireless Controller
   Axes: 6
   Buttons: 11
-Connecting to Arduino on /dev/ttyACM0 at 115200 baud...
-Serial connection established!
+
+Initializing GPIO pins...
+  Steering: Pin 32
+  Throttle: Pin 33
+GPIO PWM initialized!
 
 ============================================================
 RC CAR TELEOPERATION ACTIVE
@@ -194,54 +176,65 @@ Steer: 1500µs (+0.00)  |  Throttle: 1500µs (+0.00)
 ### Basic Usage
 
 ```bash
-python3 teleop_rc.py
+sudo python3 teleop_rc.py
 ```
 
-### With Custom Port
+### With Custom GPIO Pins
 
 ```bash
-python3 teleop_rc.py --port /dev/ttyUSB0
-```
-
-### With Custom Baud Rate
-
-```bash
-python3 teleop_rc.py --baud 9600
+sudo python3 teleop_rc.py --steer-pin 32 --throttle-pin 33
 ```
 
 ### With Custom Deadzone
 
 ```bash
-python3 teleop_rc.py --deadzone 0.15
+sudo python3 teleop_rc.py --deadzone 0.15
 ```
 
 ### Combined Options
 
 ```bash
-python3 teleop_rc.py --port /dev/ttyUSB0 --baud 115200 --deadzone 0.1
+sudo python3 teleop_rc.py --steer-pin 32 --throttle-pin 33 --deadzone 0.2
 ```
 
 ### View All Options
 
 ```bash
-python3 teleop_rc.py --help
+sudo python3 teleop_rc.py --help
 ```
 
 ## Configuration Constants
 
 Edit [teleop_rc.py](teleop_rc.py) to customize behavior:
 
-| Constant | Line | Default Value | Description |
-|----------|------|---------------|-------------|
-| `SERIAL_PORT` | 29 | `/dev/ttyACM0` | Arduino serial port |
-| `BAUD_RATE` | 30 | `115200` | Serial communication speed |
-| `LOOP_HZ` | 31 | `50` | Control loop frequency |
-| `STEER_AXIS` | 34 | `0` | Joystick axis for steering (X) |
-| `THROTTLE_AXIS` | 35 | `1` | Joystick axis for throttle (Y) |
-| `DEADZONE` | 38 | `0.1` | Joystick deadzone threshold |
-| `DEBUG_PRINT_HZ` | 45 | `5` | Debug output frequency |
+| Constant | Default Value | Description |
+|----------|---------------|-------------|
+| `STEER_PIN` | `32` | GPIO pin for steering (BOARD numbering) |
+| `THROTTLE_PIN` | `33` | GPIO pin for throttle (BOARD numbering) |
+| `PWM_FREQ_HZ` | `50` | PWM frequency (Hz) |
+| `LOOP_HZ` | `50` | Control loop frequency |
+| `STEER_AXIS` | `0` | Joystick axis for steering (X) |
+| `THROTTLE_AXIS` | `1` | Joystick axis for throttle (Y) |
+| `DEADZONE` | `0.1` | Joystick deadzone threshold |
+| `DEBUG_PRINT_HZ` | `5` | Debug output frequency |
 
 ## Troubleshooting
+
+### Error: "Jetson.GPIO is not installed"
+
+**Solution:**
+```bash
+sudo pip3 install Jetson.GPIO
+```
+
+### Error: "GPIO access denied" or Permission Issues
+
+**Cause:** Script not run with root privileges.
+
+**Solution:**
+```bash
+sudo python3 teleop_rc.py
+```
 
 ### Error: "No joystick/gamepad found!"
 
@@ -257,53 +250,19 @@ sudo apt-get install joystick
 jstest /dev/input/js0  # Test gamepad input
 ```
 
-### Error: "Failed to open serial port"
+### Servo/ESC Not Responding
 
-**Cause:** Arduino not connected or permission denied.
+**Possible causes:**
 
-**Solutions:**
+1. **Wrong pin connections** - Double-check Pin 32 and 33
+2. **No common ground** - Must share ground between Jetson and RC electronics
+3. **Servo power issue** - Ensure servo has external 5-6V power supply
+4. **PWM signal level** - Most servos work with 3.3V, but some older ones may require 5V level shifter
 
-1. **Verify Arduino is connected:**
-   ```bash
-   ls -l /dev/ttyACM*
-   ls -l /dev/ttyUSB*
-   ```
-
-2. **Check permissions:**
-   ```bash
-   # Should show: crw-rw---- 1 root dialout
-   ls -l /dev/ttyACM0
-   
-   # Add yourself to dialout group
-   sudo usermod -aG dialout $USER
-   # Then log out and back in
-   ```
-
-3. **Try different port:**
-   ```bash
-   python3 teleop_rc.py --port /dev/ttyUSB0
-   ```
-
-4. **Check if another program is using the port:**
-   ```bash
-   # Close Arduino IDE Serial Monitor
-   # Stop any other programs accessing the port
-   lsof /dev/ttyACM0
-   ```
-
-### Error: "Permission denied"
-
-**Cause:** User not in `dialout` group.
-
-**Solution:**
+**Debugging steps:**
 ```bash
-# Add user to dialout group
-sudo usermod -aG dialout $USER
-
-# Verify
-groups $USER
-
-# MUST log out and back in for changes to take effect
+# Check if PWM devices are available
+ls /sys/class/pwm/
 ```
 
 ### Wrong Joystick Axes
@@ -320,7 +279,7 @@ sudo apt-get install joystick
 jstest /dev/input/js0
 
 # Move left stick and note which axis numbers change
-# Edit teleop_rc.py lines 34-35 with correct numbers
+# Edit teleop_rc.py to match your controller
 ```
 
 Example axes for different controllers:
@@ -334,7 +293,7 @@ Example axes for different controllers:
 
 **Solutions:**
 
-For inverted throttle, edit line 175:
+For inverted throttle, edit the control loop section:
 ```python
 # Current (inverts Y-axis):
 throttle_raw = -joystick.get_axis(THROTTLE_AXIS)
@@ -350,35 +309,36 @@ def axis_to_us(x: float) -> int:
     return int(NEUTRAL_US - 500 * x)  # Note: minus instead of plus
 ```
 
-## Serial Communication Protocol
+## PWM Signal Details
 
-The script sends commands in the format:
-```
-S<steering_us> T<throttle_us>\n
-```
+### Technical Specifications
 
-### Example Commands
-
-| Command | Steering | Throttle | Result |
-|---------|----------|----------|--------|
-| `S1500 T1500\n` | Neutral (1500µs) | Neutral (1500µs) | Centered, stopped |
-| `S1000 T1500\n` | Full left (1000µs) | Neutral | Sharp left, no motion |
-| `S2000 T1500\n` | Full right (2000µs) | Neutral | Sharp right, no motion |
-| `S1500 T2000\n` | Neutral | Full forward (2000µs) | Straight line forward |
-| `S1500 T1000\n` | Neutral | Full reverse (1000µs) | Straight line backward |
-| `S1800 T1700\n` | Right (1800µs) | Forward (1700µs) | Turn right while moving |
+- **Frequency:** 50 Hz (20ms period)
+- **Pulse Width Range:** 1000-2000 microseconds
+- **Neutral Position:** 1500 microseconds
+- **Signal Level:** 3.3V (Jetson GPIO output)
 
 ### PWM Value Ranges
 
-- **1000µs:** Full left / full reverse
-- **1500µs:** Center / neutral (default)
-- **2000µs:** Full right / full forward
+| Pulse Width | Steering Position | Throttle Action |
+|-------------|-------------------|-----------------|
+| 1000µs      | Full left         | Full reverse    |
+| 1500µs      | Center (neutral)  | Stopped         |
+| 2000µs      | Full right        | Full forward    |
+
+### Duty Cycle Calculation
+
+At 50Hz (20ms = 20,000µs period):
+- 1000µs = 5.0% duty cycle
+- 1500µs = 7.5% duty cycle (neutral)
+- 2000µs = 10.0% duty cycle
 
 ## Safety Features
 
-1. **Emergency Stop:** Press Ctrl+C to immediately send neutral command (1500µs) to both steering and throttle
+1. **Emergency Stop:** Press Ctrl+C to immediately set neutral position (1500µs) on both channels
 2. **Deadzone:** Small joystick movements (< 0.1 by default) are ignored to prevent drift
-3. **Input Clamping:** All values are clamped to safe range [1000, 2000]µs before sending
+3. **Input Clamping:** All values are clamped to safe range [1000, 2000]µs
+4. **GPIO Cleanup:** Proper GPIO cleanup on exit to prevent pin conflicts
 
 ## Advanced Configuration
 
@@ -386,24 +346,31 @@ S<steering_us> T<throttle_us>\n
 
 Higher frequency = smoother control but more CPU usage:
 ```python
-LOOP_HZ = 100  # 100 Hz updates (line 31)
+LOOP_HZ = 100  # 100 Hz updates
 ```
 
 ### Adjusting Debug Output
 
 Show more/less frequent updates:
 ```python
-DEBUG_PRINT_HZ = 10  # 10 updates per second (line 45)
+DEBUG_PRINT_HZ = 10  # 10 updates per second
 DEBUG_PRINT_HZ = 1   # 1 update per second (less spam)
 ```
 
 ### Using Different Joystick
 
-If you have multiple gamepads, change line 128:
+If you have multiple gamepads connected:
 ```python
 joystick = pygame.joystick.Joystick(0)  # First gamepad
 joystick = pygame.joystick.Joystick(1)  # Second gamepad
 ```
+
+### Using Different GPIO Pins
+
+Check Jetson pinout and select PWM-capable pins. Common options:
+- **Jetson Nano:** Pin 32 (PWM0), Pin 33 (PWM2)
+- **Jetson Xavier NX:** Multiple PWM channels available
+- **Jetson Orin:** Multiple PWM channels available
 
 ## Making Script Executable
 
@@ -411,13 +378,13 @@ joystick = pygame.joystick.Joystick(1)  # Second gamepad
 # Make script executable
 chmod +x teleop_rc.py
 
-# Run directly
-./teleop_rc.py --port /dev/ttyACM0
+# Run directly (still needs sudo)
+sudo ./teleop_rc.py
 ```
 
 ## Running on Boot (Optional)
 
-Create a systemd service to auto-start:
+Create a systemd service to auto-start (note: requires root privileges):
 
 ```bash
 sudo nano /etc/systemd/system/rc-teleop.service
@@ -426,19 +393,22 @@ sudo nano /etc/systemd/system/rc-teleop.service
 Add:
 ```ini
 [Unit]
-Description=RC Car Teleoperation
-After=network.target
+Description=RC Car Teleoperation via GPIO
+After=multi-user.target
 
 [Service]
 Type=simple
-User=YOUR_USERNAME
-WorkingDirectory=/home/YOUR_USERNAME/Desktop/SDP/jetson
-ExecStart=/usr/bin/python3 /home/YOUR_USERNAME/Desktop/SDP/jetson/teleop_rc.py
+User=root
+WorkingDirectory=/home/YOUR_USERNAME/Desktop/SDP/jetson_rc_control/jetson
+ExecStart=/usr/bin/python3 /home/YOUR_USERNAME/Desktop/SDP/jetson_rc_control/jetson/teleop_rc.py
 Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+**Note:** Service must run as root for GPIO access.
 
 Enable and start:
 ```bash
@@ -450,6 +420,7 @@ sudo systemctl status rc-teleop.service
 ## Additional Resources
 
 - [Main Project README](../README.md)
-- [Arduino Firmware](../arduino/rc_bridge.ino)
 - [pygame Documentation](https://www.pygame.org/docs/)
-- [pySerial Documentation](https://pyserial.readthedocs.io/)
+- [Jetson.GPIO Documentation](https://github.com/NVIDIA/jetson-gpio)
+- [Jetson GPIO Pinout Reference](https://jetsonhacks.com/nvidia-jetson-nano-j41-header-pinout/)
+

@@ -28,14 +28,16 @@ SDP/
 ### Jetson RC Control
 **Location:** [`jetson_rc_control/`](jetson_rc_control/)
 
-A complete teleoperation system for controlling RC vehicles using a Jetson board, Arduino, and USB gamepad. Provides low-latency PWM control over serial communication for steering and throttle.
+A direct GPIO control system for RC vehicles using a Jetson board and USB gamepad. Provides low-latency PWM control without requiring an Arduino.
 
 **Key Features:**
 - USB gamepad input handling
-- Serial communication protocol
-- PWM signal generation for servo/ESC
-- Safety timeout and emergency stop
+- Direct GPIO PWM signal generation
+- 50Hz PWM for servo/ESC control
+- Safety features and emergency stop
 - Configurable control mapping
+
+**Arduino Not Required:** This system uses Jetson GPIO pins directly instead of serial communication to Arduino, reducing latency and simplifying hardware.
 
 **Status:** ⚠️  To be tested 
 

@@ -7,22 +7,21 @@ echo "Installing RC Control Dependencies"
 echo "========================================"
 echo
 
-echo "Uninstalling conflicting 'serial' package..."
-pip3 uninstall serial -y
+echo "Installing required packages with sudo..."
+sudo pip3 install -r requirements.txt
 
 echo
-echo "Installing required packages..."
-pip3 install -r requirements.txt
-
-echo
-echo "Adding user to dialout group for serial permissions..."
-sudo usermod -aG dialout $USER
+echo "Verifying installation..."
+python3 -c "import pygame, Jetson.GPIO; print('✓ Dependencies installed successfully!')" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "⚠ Warning: Could not verify installation. You may need to install manually."
+fi
 
 echo
 echo "========================================"
 echo "Installation Complete!"
 echo "========================================"
 echo
-echo "IMPORTANT: Log out and back in for serial permissions to take effect"
-echo "Then you can run: python3 teleop_rc.py"
+echo "IMPORTANT: Run the script with sudo for GPIO access:"
+echo "  sudo python3 teleop_rc.py"
 echo

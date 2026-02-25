@@ -2,18 +2,20 @@
 """
 RC Car Teleoperation Script for Jetson
 
-Reads USB gamepad input and sends PWM commands to Arduino
-via serial to control steering and throttle on Traxxas RC car.
+Reads USB gamepad input and generates PWM signals directly from
+Jetson GPIO pins to control steering and throttle on Traxxas RC car.
 
 Dependencies:
     - pygame
-    - pyserial
+    - Jetson.GPIO
 
 Install with:
-    pip3 install pygame pyserial
+    pip3 install pygame Jetson.GPIO
     
 Usage:
-    python3 teleop_rc.py [--port /dev/ttyACM0]
+    sudo python3 teleop_rc.py [--steer-pin 32] [--throttle-pin 33]
+    
+Note: Requires sudo for GPIO access
 """
 
 import sys
@@ -21,22 +23,27 @@ import time
 import argparse
 import pygame
 
-# Import pyserial with error handling for common installation issues
+# Import Jetson.GPIO with error handling
 try:
-    import serial
-    # Verify it's the correct pyserial module
-    if not hasattr(serial, 'Serial'):
-        raise ImportError("Wrong serial module - pyserial not installed correctly")
-except ImportError as e:
+    import Jetson.GPIO as GPIO
+except ImportError:
     print("=" * 70)
-    print("ERROR: pyserial is not properly installed!")
+    print("ERROR: Jetson.GPIO is not installed!")
     print("=" * 70)
-    print("\nThe 'serial' module was found, but it's not the pyserial library.")
-    print("\nTo fix this, run these commands:")
-    print("  1. pip uninstall serial")
-    print("  2. pip install pyserial")
-    print("\nOr in one command:")
-    print("  pip uninstall serial -y && pip install pyserial")
+    print("\nThe Jetson.GPIO library is required for PWM control.")
+    print("\nTo fix this, run:")
+    print("  sudo pip3 install Jetson.GPIO")
+    print("\nOr using the requirements file:")
+    print("  sudo pip3 install -r requirements.txt")
+    print("\n" + "=" * 70)
+    sys.exit(1)
+except RuntimeError as e:
+    print("=" * 70)
+    print("ERROR: GPIO access denied!")
+    print("=" * 70)
+    print("\nThis script requires root privileges to access GPIO pins.")
+    print("\nPlease run with sudo:")
+    print("  sudo python3 teleop_rc.py")
     print("\n" + "=" * 70)
     sys.exit(1)
 
@@ -44,8 +51,12 @@ except ImportError as e:
 # Configuration Constants
 # =============================================================================
 
-SERIAL_PORT = "/dev/ttyACM0"  # Default Arduino serial port
-BAUD_RATE = 115200            # Serial baud rate
+# GPIO pin assignments (BOARD numbering)
+STEER_PIN = 32                # Steering servo signal pin (PWM0)
+THROTTLE_PIN = 33             # ESC throttle signal pin (PWM2)
+
+# PWM configuration
+PWM_FREQ_HZ = 50              # Standard RC servo/ESC frequency
 LOOP_HZ = 50                  # Control loop frequency (Hz)
 
 # Joystick axis indices (adjust for your gamepad if needed)
@@ -59,6 +70,7 @@ DEADZONE = 0.1
 MIN_US = 1000
 MAX_US = 2000
 NEUTRAL_US = 1500
+PWM_PERIOD_US = 20000         # Period at 50Hz = 20ms = 20000µs
 
 # Debug print rate (Hz)
 DEBUG_PRINT_HZ = 5
@@ -83,6 +95,19 @@ def axis_to_us(x: float) -> int:
     return int(NEUTRAL_US + 500 * x)
 
 
+def us_to_duty_cycle(pulse_us: int) -> float:
+    """
+    Convert pulse width in microseconds to PWM duty cycle percentage.
+    
+    Args:
+        pulse_us: Pulse width in microseconds
+        
+    Returns:
+        Duty cycle as percentage (0-100)
+    """
+    return (pulse_us / PWM_PERIOD_US) * 100.0
+
+
 def apply_deadzone(value: float, deadzone: float) -> float:
     """
     Apply deadzone to joystick axis value.
@@ -99,17 +124,21 @@ def apply_deadzone(value: float, deadzone: float) -> float:
     return value
 
 
-def send_command(ser: serial.Serial, steer_us: int, throttle_us: int):
+def set_pwm(pwm_steer, pwm_throttle, steer_us: int, throttle_us: int):
     """
-    Send control command to Arduino via serial.
+    Set PWM duty cycles for steering and throttle.
     
     Args:
-        ser: Serial connection object
+        pwm_steer: GPIO.PWM object for steering
+        pwm_throttle: GPIO.PWM object for throttle
         steer_us: Steering PWM in microseconds
         throttle_us: Throttle PWM in microseconds
     """
-    command = f"S{steer_us} T{throttle_us}\n"
-    ser.write(command.encode('utf-8'))
+    steer_duty = us_to_duty_cycle(steer_us)
+    throttle_duty = us_to_duty_cycle(throttle_us)
+    
+    pwm_steer.ChangeDutyCycle(steer_duty)
+    pwm_throttle.ChangeDutyCycle(throttle_duty)
 
 
 # =============================================================================
@@ -119,10 +148,10 @@ def send_command(ser: serial.Serial, steer_us: int, throttle_us: int):
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='RC Car Teleoperation')
-    parser.add_argument('--port', type=str, default=SERIAL_PORT,
-                        help=f'Serial port (default: {SERIAL_PORT})')
-    parser.add_argument('--baud', type=int, default=BAUD_RATE,
-                        help=f'Baud rate (default: {BAUD_RATE})')
+    parser.add_argument('--steer-pin', type=int, default=STEER_PIN,
+                        help=f'GPIO pin for steering (BOARD numbering, default: {STEER_PIN})')
+    parser.add_argument('--throttle-pin', type=int, default=THROTTLE_PIN,
+                        help=f'GPIO pin for throttle (BOARD numbering, default: {THROTTLE_PIN})')
     parser.add_argument('--deadzone', type=float, default=DEADZONE,
                         help=f'Joystick deadzone (default: {DEADZONE})')
     args = parser.parse_args()
@@ -145,19 +174,35 @@ def main():
     print(f"  Axes: {joystick.get_numaxes()}")
     print(f"  Buttons: {joystick.get_numbuttons()}")
     
-    # Initialize serial connection
-    print(f"Connecting to Arduino on {args.port} at {args.baud} baud...")
+    # Initialize GPIO
+    print(f"\nInitializing GPIO pins...")
+    print(f"  Steering: Pin {args.steer_pin}")
+    print(f"  Throttle: Pin {args.throttle_pin}")
+    
     try:
-        ser = serial.Serial(args.port, args.baud, timeout=0.1)
-        time.sleep(2)  # Wait for Arduino to reset after serial connection
-        print("Serial connection established!")
-    except serial.SerialException as e:
-        print(f"ERROR: Failed to open serial port {args.port}")
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(args.steer_pin, GPIO.OUT)
+        GPIO.setup(args.throttle_pin, GPIO.OUT)
+        
+        # Create PWM objects at 50Hz
+        pwm_steer = GPIO.PWM(args.steer_pin, PWM_FREQ_HZ)
+        pwm_throttle = GPIO.PWM(args.throttle_pin, PWM_FREQ_HZ)
+        
+        # Start PWM at neutral position
+        neutral_duty = us_to_duty_cycle(NEUTRAL_US)
+        pwm_steer.start(neutral_duty)
+        pwm_throttle.start(neutral_duty)
+        
+        print("GPIO PWM initialized!")
+        time.sleep(0.5)  # Allow ESC to recognize signal
+        
+    except Exception as e:
+        print(f"ERROR: Failed to initialize GPIO")
         print(f"  {e}")
         print("\nTroubleshooting:")
-        print("  - Check that Arduino is connected via USB")
-        print("  - Verify the correct port (try: ls /dev/ttyACM* or ls /dev/ttyUSB*)")
-        print("  - Ensure you have permissions (add user to 'dialout' group)")
+        print("  - Run with sudo: sudo python3 teleop_rc.py")
+        print("  - Check that pins are not in use by another process")
+        print("  - Verify Jetson.GPIO is properly installed")
         pygame.quit()
         sys.exit(1)
     
@@ -194,8 +239,8 @@ def main():
             steer_us = axis_to_us(steer_raw)
             throttle_us = axis_to_us(throttle_raw)
             
-            # Send command to Arduino
-            send_command(ser, steer_us, throttle_us)
+            # Set PWM outputs
+            set_pwm(pwm_steer, pwm_throttle, steer_us, throttle_us)
             
             # Debug output at reduced rate
             current_time = time.time()
@@ -213,14 +258,18 @@ def main():
         print("\n\nShutdown signal received...")
     
     finally:
-        # Emergency stop: send neutral command
-        print("Sending neutral command (emergency stop)...")
-        send_command(ser, NEUTRAL_US, NEUTRAL_US)
-        time.sleep(0.1)  # Give time for command to be sent
+        # Emergency stop: set neutral position
+        print("Setting neutral position (emergency stop)...")
+        set_pwm(pwm_steer, pwm_throttle, NEUTRAL_US, NEUTRAL_US)
+        time.sleep(0.1)  # Give time for PWM to settle
         
-        # Cleanup
-        print("Closing serial connection...")
-        ser.close()
+        # Cleanup GPIO
+        print("Stopping PWM signals...")
+        pwm_steer.stop()
+        pwm_throttle.stop()
+        
+        print("Cleaning up GPIO...")
+        GPIO.cleanup()
         
         print("Shutting down pygame...")
         pygame.quit()
