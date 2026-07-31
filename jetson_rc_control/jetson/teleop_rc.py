@@ -1,281 +1,247 @@
 #!/usr/bin/env python3
 """
-RC Car Teleoperation Script for Jetson
+Jetson RC control without Arduino.
 
-Reads USB gamepad input and generates PWM signals directly from
-Jetson GPIO pins to control steering and throttle on Traxxas RC car.
+Hardware assumption:
+- VESC/ESC connector has 3 pins: signal, +5V/BEC, ground
+- Steering controller/servo connector has 3 pins: signal, +5V, ground
+- Jetson only drives the SIGNAL pins and shares GROUND
+- Do not power the Jetson from the controller/servo red wire
 
-Dependencies:
-    - pygame
-    - Jetson.GPIO
+Default wiring using Jetson BOARD numbering:
+- Steering signal  -> Pin 32 / PWM0
+- VESC/ESC signal  -> Pin 33 / PWM2
+- Common ground    -> Pin 34 or any Jetson GND pin
+- Red power wires  -> external 5-6V/BEC, not Jetson GPIO
 
-Install with:
-    pip3 install pygame Jetson.GPIO
-    
-Usage:
-    sudo python3 teleop_rc.py [--steer-pin 32] [--throttle-pin 33]
-    
-Note: Requires sudo for GPIO access
+Run:
+    sudo python3 teleop_rc_no_arduino.py
 """
 
+import argparse
+import signal
 import sys
 import time
-import argparse
+from dataclasses import dataclass
+
 import pygame
 
-# Import Jetson.GPIO with error handling
 try:
     import Jetson.GPIO as GPIO
 except ImportError:
-    print("=" * 70)
-    print("ERROR: Jetson.GPIO is not installed!")
-    print("=" * 70)
-    print("\nThe Jetson.GPIO library is required for PWM control.")
-    print("\nTo fix this, run:")
-    print("  sudo pip3 install Jetson.GPIO")
-    print("\nOr using the requirements file:")
-    print("  sudo pip3 install -r requirements.txt")
-    print("\n" + "=" * 70)
-    sys.exit(1)
-except RuntimeError as e:
-    print("=" * 70)
-    print("ERROR: GPIO access denied!")
-    print("=" * 70)
-    print("\nThis script requires root privileges to access GPIO pins.")
-    print("\nPlease run with sudo:")
-    print("  sudo python3 teleop_rc.py")
-    print("\n" + "=" * 70)
+    print("ERROR: Jetson.GPIO is not installed.")
+    print("Install it with: sudo pip3 install Jetson.GPIO pygame")
     sys.exit(1)
 
-# =============================================================================
-# Configuration Constants
-# =============================================================================
 
-# GPIO pin assignments (BOARD numbering)
-STEER_PIN = 32                # Steering servo signal pin (PWM0)
-THROTTLE_PIN = 33             # ESC throttle signal pin (PWM2)
+@dataclass(frozen=True)
+class ThreePinPwmDevice:
+    name: str
+    signal_pin: int
+    power_pin_label: str = "external 5-6V/BEC"
+    ground_pin_label: str = "Jetson GND/common ground"
+    min_us: int = 1000
+    neutral_us: int = 1500
+    max_us: int = 2000
+    inverted: bool = False
 
-# PWM configuration
-PWM_FREQ_HZ = 50              # Standard RC servo/ESC frequency
-LOOP_HZ = 50                  # Control loop frequency (Hz)
 
-# Joystick axis indices (adjust for your gamepad if needed)
-STEER_AXIS = 0                # Left stick X-axis
-THROTTLE_AXIS = 1             # Left stick Y-axis (will be inverted)
-
-# Deadzone threshold (values with abs < DEADZONE treated as 0)
-DEADZONE = 0.1
-
-# PWM pulse width range (microseconds)
-MIN_US = 1000
-MAX_US = 2000
-NEUTRAL_US = 1500
-PWM_PERIOD_US = 20000         # Period at 50Hz = 20ms = 20000µs
-
-# Debug print rate (Hz)
+PWM_FREQ_HZ = 50
+PWM_PERIOD_US = 1_000_000 // PWM_FREQ_HZ
+LOOP_HZ = 50
 DEBUG_PRINT_HZ = 5
 
-# =============================================================================
-# Helper Functions
-# =============================================================================
+DEFAULT_STEERING = ThreePinPwmDevice(
+    name="steering controller",
+    signal_pin=32,
+    inverted=False,
+)
+DEFAULT_VESC = ThreePinPwmDevice(
+    name="VESC/ESC",
+    signal_pin=33,
+    inverted=False,
+)
 
-def axis_to_us(x: float) -> int:
-    """
-    Convert joystick axis value to PWM microseconds.
-    
-    Args:
-        x: Axis value in range [-1.0, 1.0]
-        
-    Returns:
-        PWM pulse width in microseconds [1000, 2000]
-    """
-    # Clamp input to [-1, 1]
-    x = max(-1.0, min(1.0, x))
-    # Map to [1000, 2000]
-    return int(NEUTRAL_US + 500 * x)
+STEER_AXIS = 0       # Left stick X
+THROTTLE_AXIS = 1    # Left stick Y
+DEFAULT_DEADZONE = 0.10
+
+running = True
 
 
-def us_to_duty_cycle(pulse_us: int) -> float:
-    """
-    Convert pulse width in microseconds to PWM duty cycle percentage.
-    
-    Args:
-        pulse_us: Pulse width in microseconds
-        
-    Returns:
-        Duty cycle as percentage (0-100)
-    """
-    return (pulse_us / PWM_PERIOD_US) * 100.0
+def handle_shutdown(signum, frame):
+    global running
+    running = False
+
+
+def clamp(value, low, high):
+    return max(low, min(high, value))
 
 
 def apply_deadzone(value: float, deadzone: float) -> float:
-    """
-    Apply deadzone to joystick axis value.
-    
-    Args:
-        value: Raw axis value
-        deadzone: Deadzone threshold
-        
-    Returns:
-        Adjusted value (0 if within deadzone)
-    """
     if abs(value) < deadzone:
         return 0.0
     return value
 
 
-def set_pwm(pwm_steer, pwm_throttle, steer_us: int, throttle_us: int):
-    """
-    Set PWM duty cycles for steering and throttle.
-    
-    Args:
-        pwm_steer: GPIO.PWM object for steering
-        pwm_throttle: GPIO.PWM object for throttle
-        steer_us: Steering PWM in microseconds
-        throttle_us: Throttle PWM in microseconds
-    """
-    steer_duty = us_to_duty_cycle(steer_us)
-    throttle_duty = us_to_duty_cycle(throttle_us)
-    
-    pwm_steer.ChangeDutyCycle(steer_duty)
-    pwm_throttle.ChangeDutyCycle(throttle_duty)
+def axis_to_us(axis_value: float, device: ThreePinPwmDevice) -> int:
+    axis_value = clamp(axis_value, -1.0, 1.0)
+    if device.inverted:
+        axis_value = -axis_value
+
+    half_range = (device.max_us - device.min_us) / 2.0
+    pulse = device.neutral_us + axis_value * half_range
+    return int(clamp(round(pulse), device.min_us, device.max_us))
 
 
-# =============================================================================
-# Main Function
-# =============================================================================
+def us_to_duty_cycle(pulse_us: int) -> float:
+    return (pulse_us / PWM_PERIOD_US) * 100.0
 
-def main():
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='RC Car Teleoperation')
-    parser.add_argument('--steer-pin', type=int, default=STEER_PIN,
-                        help=f'GPIO pin for steering (BOARD numbering, default: {STEER_PIN})')
-    parser.add_argument('--throttle-pin', type=int, default=THROTTLE_PIN,
-                        help=f'GPIO pin for throttle (BOARD numbering, default: {THROTTLE_PIN})')
-    parser.add_argument('--deadzone', type=float, default=DEADZONE,
-                        help=f'Joystick deadzone (default: {DEADZONE})')
-    args = parser.parse_args()
-    
-    # Initialize pygame
-    print("Initializing pygame...")
+
+def set_pwm(pwm, pulse_us: int):
+    pwm.ChangeDutyCycle(us_to_duty_cycle(pulse_us))
+
+
+def print_wiring(steering: ThreePinPwmDevice, vesc: ThreePinPwmDevice):
+    print("\n3-pin wiring assumption:")
+    print(f"  {steering.name}:")
+    print(f"    signal -> Jetson BOARD pin {steering.signal_pin}")
+    print(f"    power  -> {steering.power_pin_label}")
+    print(f"    ground -> {steering.ground_pin_label}")
+    print(f"  {vesc.name}:")
+    print(f"    signal -> Jetson BOARD pin {vesc.signal_pin}")
+    print(f"    power  -> VESC/ESC BEC or left unconnected to Jetson")
+    print(f"    ground -> {vesc.ground_pin_label}")
+    print("\nImportant: Jetson GPIO should connect to signal and ground only.")
+
+
+def init_gamepad():
     pygame.init()
     pygame.joystick.init()
-    
-    # Check for joystick
+
     if pygame.joystick.get_count() == 0:
-        print("ERROR: No joystick/gamepad found!")
-        print("Please connect a USB gamepad and try again.")
-        sys.exit(1)
-    
-    # Initialize first joystick
+        raise RuntimeError("No USB gamepad found. Check /dev/input/js0 or reconnect the controller.")
+
     joystick = pygame.joystick.Joystick(0)
     joystick.init()
-    print(f"Found joystick: {joystick.get_name()}")
-    print(f"  Axes: {joystick.get_numaxes()}")
-    print(f"  Buttons: {joystick.get_numbuttons()}")
-    
-    # Initialize GPIO
-    print(f"\nInitializing GPIO pins...")
-    print(f"  Steering: Pin {args.steer_pin}")
-    print(f"  Throttle: Pin {args.throttle_pin}")
-    
+    print(f"Gamepad: {joystick.get_name()}")
+    print(f"Axes: {joystick.get_numaxes()} | Buttons: {joystick.get_numbuttons()}")
+    return joystick
+
+
+def init_pwm_outputs(steering: ThreePinPwmDevice, vesc: ThreePinPwmDevice):
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(steering.signal_pin, GPIO.OUT)
+    GPIO.setup(vesc.signal_pin, GPIO.OUT)
+
+    pwm_steering = GPIO.PWM(steering.signal_pin, PWM_FREQ_HZ)
+    pwm_vesc = GPIO.PWM(vesc.signal_pin, PWM_FREQ_HZ)
+
+    pwm_steering.start(us_to_duty_cycle(steering.neutral_us))
+    pwm_vesc.start(us_to_duty_cycle(vesc.neutral_us))
+
+    # Give the VESC/ESC time to see a neutral command before throttle changes.
+    time.sleep(1.0)
+    return pwm_steering, pwm_vesc
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Jetson RC teleop without Arduino")
+    parser.add_argument("--steer-pin", type=int, default=DEFAULT_STEERING.signal_pin,
+                        help="Jetson BOARD pin connected to steering signal")
+    parser.add_argument("--vesc-pin", "--throttle-pin", dest="vesc_pin", type=int,
+                        default=DEFAULT_VESC.signal_pin,
+                        help="Jetson BOARD pin connected to VESC/ESC signal")
+    parser.add_argument("--deadzone", type=float, default=DEFAULT_DEADZONE)
+    parser.add_argument("--invert-steer", action="store_true")
+    parser.add_argument("--invert-throttle", action="store_true")
+    parser.add_argument("--steer-axis", type=int, default=STEER_AXIS)
+    parser.add_argument("--throttle-axis", type=int, default=THROTTLE_AXIS)
+    args = parser.parse_args()
+
+    signal.signal(signal.SIGINT, handle_shutdown)
+    signal.signal(signal.SIGTERM, handle_shutdown)
+
+    steering = ThreePinPwmDevice(
+        name="steering controller",
+        signal_pin=args.steer_pin,
+        inverted=args.invert_steer,
+    )
+    vesc = ThreePinPwmDevice(
+        name="VESC/ESC",
+        signal_pin=args.vesc_pin,
+        inverted=args.invert_throttle,
+    )
+
+    print_wiring(steering, vesc)
+
+    pwm_steering = None
+    pwm_vesc = None
+
     try:
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(args.steer_pin, GPIO.OUT)
-        GPIO.setup(args.throttle_pin, GPIO.OUT)
-        
-        # Create PWM objects at 50Hz
-        pwm_steer = GPIO.PWM(args.steer_pin, PWM_FREQ_HZ)
-        pwm_throttle = GPIO.PWM(args.throttle_pin, PWM_FREQ_HZ)
-        
-        # Start PWM at neutral position
-        neutral_duty = us_to_duty_cycle(NEUTRAL_US)
-        pwm_steer.start(neutral_duty)
-        pwm_throttle.start(neutral_duty)
-        
-        print("GPIO PWM initialized!")
-        time.sleep(0.5)  # Allow ESC to recognize signal
-        
-    except Exception as e:
-        print(f"ERROR: Failed to initialize GPIO")
-        print(f"  {e}")
-        print("\nTroubleshooting:")
-        print("  - Run with sudo: sudo python3 teleop_rc.py")
-        print("  - Check that pins are not in use by another process")
-        print("  - Verify Jetson.GPIO is properly installed")
-        pygame.quit()
-        sys.exit(1)
-    
-    # Control loop setup
-    loop_period = 1.0 / LOOP_HZ
-    debug_print_period = 1.0 / DEBUG_PRINT_HZ
-    last_print_time = 0
-    
-    print("\n" + "="*60)
-    print("RC CAR TELEOPERATION ACTIVE")
-    print("="*60)
-    print("Controls:")
-    print("  Left Stick X-axis: Steering")
-    print("  Left Stick Y-axis: Throttle (forward/reverse)")
-    print("  Press Ctrl+C to exit safely")
-    print("="*60 + "\n")
-    
-    try:
-        while True:
-            loop_start_time = time.time()
-            
-            # Pump pygame event queue
+        joystick = init_gamepad()
+        pwm_steering, pwm_vesc = init_pwm_outputs(steering, vesc)
+
+        print("\nTeleoperation active")
+        print("Left stick X: steering")
+        print("Left stick Y: throttle")
+        print("Ctrl+C: neutral stop and exit\n")
+
+        loop_period = 1.0 / LOOP_HZ
+        debug_period = 1.0 / DEBUG_PRINT_HZ
+        last_debug = 0.0
+
+        while running:
+            start = time.time()
             pygame.event.pump()
-            
-            # Read joystick axes
-            steer_raw = joystick.get_axis(STEER_AXIS)
-            throttle_raw = -joystick.get_axis(THROTTLE_AXIS)  # Invert Y-axis
-            
-            # Apply deadzone
+
+            steer_raw = joystick.get_axis(args.steer_axis)
+            throttle_raw = -joystick.get_axis(args.throttle_axis)
+
             steer_raw = apply_deadzone(steer_raw, args.deadzone)
             throttle_raw = apply_deadzone(throttle_raw, args.deadzone)
-            
-            # Convert to microseconds
-            steer_us = axis_to_us(steer_raw)
-            throttle_us = axis_to_us(throttle_raw)
-            
-            # Set PWM outputs
-            set_pwm(pwm_steer, pwm_throttle, steer_us, throttle_us)
-            
-            # Debug output at reduced rate
-            current_time = time.time()
-            if current_time - last_print_time >= debug_print_period:
-                print(f"Steer: {steer_us:4d}µs ({steer_raw:+.2f})  |  "
-                      f"Throttle: {throttle_us:4d}µs ({throttle_raw:+.2f})")
-                last_print_time = current_time
-            
-            # Maintain loop rate
-            elapsed = time.time() - loop_start_time
+
+            steer_us = axis_to_us(steer_raw, steering)
+            throttle_us = axis_to_us(throttle_raw, vesc)
+
+            set_pwm(pwm_steering, steer_us)
+            set_pwm(pwm_vesc, throttle_us)
+
+            now = time.time()
+            if now - last_debug >= debug_period:
+                print(
+                    f"steer={steer_us:4d}us ({steer_raw:+.2f}) | "
+                    f"vesc={throttle_us:4d}us ({throttle_raw:+.2f})"
+                )
+                last_debug = now
+
+            elapsed = time.time() - start
             if elapsed < loop_period:
                 time.sleep(loop_period - elapsed)
-    
-    except KeyboardInterrupt:
-        print("\n\nShutdown signal received...")
-    
+
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
+    except Exception as exc:
+        print(f"ERROR: {exc}")
+        print("Try running with sudo and confirm the selected pins support PWM.")
+        sys.exit(1)
     finally:
-        # Emergency stop: set neutral position
-        print("Setting neutral position (emergency stop)...")
-        set_pwm(pwm_steer, pwm_throttle, NEUTRAL_US, NEUTRAL_US)
-        time.sleep(0.1)  # Give time for PWM to settle
-        
-        # Cleanup GPIO
-        print("Stopping PWM signals...")
-        pwm_steer.stop()
-        pwm_throttle.stop()
-        
-        print("Cleaning up GPIO...")
+        print("\nSetting both outputs to neutral...")
+        if pwm_steering is not None:
+            set_pwm(pwm_steering, steering.neutral_us)
+        if pwm_vesc is not None:
+            set_pwm(pwm_vesc, vesc.neutral_us)
+        time.sleep(0.2)
+
+        if pwm_steering is not None:
+            pwm_steering.stop()
+        if pwm_vesc is not None:
+            pwm_vesc.stop()
+
         GPIO.cleanup()
-        
-        print("Shutting down pygame...")
         pygame.quit()
-        
-        print("Teleoperation stopped. Goodbye!")
-        sys.exit(0)
+        print("Stopped safely.")
 
 
 if __name__ == "__main__":
