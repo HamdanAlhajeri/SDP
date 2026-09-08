@@ -20,6 +20,9 @@ Usage:
     # override the current range
     python3 teleop_vesc.py --min-current 10 --max-current 120
 
+    # reach full throttle in roughly 3.4 seconds after launch
+    python3 teleop_vesc.py --launch-throttle 0.14 --ramp-rate 0.25
+
 Controls:
     Left stick X  -> steering
     Left stick Y  -> throttle (unless --disable-motor is used)
@@ -56,6 +59,8 @@ LOOP_HZ = 50              # VESC times out if it hears nothing, so resend
 STEER_RANGE = 0.35        # 0.5 +/- 0.35 -> 0.15 .. 0.85
 MIN_CURRENT = 5.0         # amps at the edge of the joystick deadzone
 MAX_CURRENT = 170.0       # amps at full joystick travel
+LAUNCH_THROTTLE = 0.1    # known-good initial sensorless launch command
+RAMP_RATE = 0.25          # throttle units per second after launch
 DEBUG_PRINT_HZ = 5
 
 
@@ -85,6 +90,33 @@ def throttle_to_current(throttle, deadzone, min_current, max_current):
     magnitude = clamp(magnitude, 0.0, 1.0)
     current = min_current + (magnitude * (max_current - min_current))
     return current if throttle > 0.0 else -current
+
+
+def ramp_throttle(commanded, target, elapsed, launch_throttle, ramp_rate):
+    """Ramp acceleration while allowing an immediate reduction or stop.
+
+    A new command starts at ``launch_throttle`` (or the target when lower),
+    because this motor is already known to launch cleanly around 0.14. Power
+    then rises by at most ``ramp_rate`` throttle units per second.
+    """
+    if target == 0.0:
+        return 0.0
+
+    # Never ramp through zero into reverse. Stop for one loop first.
+    if commanded != 0.0 and math.copysign(1.0, commanded) != math.copysign(
+            1.0, target):
+        return 0.0
+
+    if commanded == 0.0:
+        return math.copysign(min(abs(target), launch_throttle), target)
+
+    # Reducing the stick must reduce power immediately.
+    if abs(target) <= abs(commanded):
+        return target
+
+    next_magnitude = min(abs(target),
+                         abs(commanded) + ramp_rate * elapsed)
+    return math.copysign(next_magnitude, target)
 
 
 def find_joystick(attempts=10):
@@ -129,6 +161,12 @@ def main():
     p.add_argument("--max-current", type=float, default=MAX_CURRENT,
                    help="motor current at full throttle in amps (default: %.1f)"
                         % MAX_CURRENT)
+    p.add_argument("--launch-throttle", type=float, default=LAUNCH_THROTTLE,
+                   help="initial throttle used when launching (default: %.2f)"
+                        % LAUNCH_THROTTLE)
+    p.add_argument("--ramp-rate", type=float, default=RAMP_RATE,
+                   help="maximum throttle increase per second (default: %.2f)"
+                        % RAMP_RATE)
     p.add_argument("--duty", action="store_true",
                    help="use duty-cycle control instead of current control")
     args = p.parse_args()
@@ -140,6 +178,11 @@ def main():
     if (not math.isfinite(args.max_current)
             or args.max_current < args.min_current):
         p.error("--max-current must be finite and at least --min-current")
+    if (not math.isfinite(args.launch_throttle)
+            or not args.deadzone <= args.launch_throttle <= 1.0):
+        p.error("--launch-throttle must be between --deadzone and 1")
+    if not math.isfinite(args.ramp_rate) or args.ramp_rate <= 0.0:
+        p.error("--ramp-rate must be a positive finite value")
 
     vesc = VESC(args.port)
 
@@ -164,6 +207,8 @@ def main():
     period = 1.0 / LOOP_HZ
     print_every = max(1, int(LOOP_HZ / DEBUG_PRINT_HZ))
     tick = 0
+    commanded_throttle = 0.0
+    previous_time = time.monotonic()
 
     try:
         while True:
@@ -173,21 +218,28 @@ def main():
             servo = axis_to_servo(steer)
             vesc.set_servo_pos(servo)
 
-            throttle = 0.0
+            target_throttle = 0.0
             if args.enable_motor:
                 # Y axis is inverted: pushing forward reads negative.
-                throttle = -apply_deadzone(js.get_axis(THROTTLE_AXIS),
-                                           args.deadzone)
-                throttle = clamp(throttle, -1.0, 1.0)
+                target_throttle = -apply_deadzone(
+                    js.get_axis(THROTTLE_AXIS), args.deadzone)
+                target_throttle = clamp(target_throttle, -1.0, 1.0)
+
+                now = time.monotonic()
+                elapsed = min(now - previous_time, 0.1)
+                previous_time = now
+                commanded_throttle = ramp_throttle(
+                    commanded_throttle, target_throttle, elapsed,
+                    args.launch_throttle, args.ramp_rate)
 
                 if args.duty:
-                    vesc.set_duty(throttle * 0.15)
+                    vesc.set_duty(commanded_throttle * 0.15)
                 else:
                     # Current control. Sensorless startup is designed around
                     # this; duty at low speed gives the openloop routine a
                     # rippled, undefined torque and causes launch cogging.
                     current = throttle_to_current(
-                        throttle, args.deadzone,
+                        commanded_throttle, args.deadzone,
                         args.min_current, args.max_current)
                     vesc.set_current(current)
             else:
@@ -195,8 +247,10 @@ def main():
 
             tick += 1
             if tick % print_every == 0:
-                print("steer %+.2f -> servo %.2f | throttle %+.2f"
-                      % (steer, servo, throttle))
+                print("steer %+.2f -> servo %.2f | throttle target %+.2f "
+                      "commanded %+.2f"
+                      % (steer, servo, target_throttle,
+                         commanded_throttle))
 
             time.sleep(period)
 

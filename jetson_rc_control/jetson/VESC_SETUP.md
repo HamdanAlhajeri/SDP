@@ -136,6 +136,8 @@ Options:
 | `--disable-motor` | off | Disable throttle commands for steering-only use |
 | `--min-current` | `5.0` | Motor current at the joystick deadzone edge, amps |
 | `--max-current` | `170.0` | Motor current at full joystick travel, amps |
+| `--launch-throttle` | `0.14` | Initial command used to launch without cogging |
+| `--ramp-rate` | `0.25` | Maximum throttle increase per second |
 | `--duty` | off | Use duty-cycle control instead of current control |
 
 ## Tuning
@@ -149,6 +151,11 @@ In `teleop_vesc.py`:
 - `MIN_CURRENT` (default `5.0` A) sets the commanded current at the edge of the
   joystick deadzone. `MAX_CURRENT` (default `170.0` A) sets the current at full
   stick. Between those points, current scales smoothly with stick travel.
+- `LAUNCH_THROTTLE` starts the motor at the known-good command instead of
+  lingering in the sensorless cogging region. `RAMP_RATE` then limits only
+  acceleration. At the default `0.25`, a full-stick command takes about 3.4
+  seconds to rise from 0.14 to 1.0. Lower the rate for a slower launch. Releasing
+  the stick always cuts the command immediately.
 
 ## Launch behaviour
 
