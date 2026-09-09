@@ -28,6 +28,21 @@ source install/setup.bash
 ros2 launch detection_and_avoidance avoidance.launch.py
 ```
 
+Alternatively, after starting the Hokuyo driver, use the included runner from
+the project root. It builds the package, checks `/scan` and `/dev/vesc`, stops
+the teleoperation service while avoidance is running, and restarts it on exit:
+
+```bash
+cd ~/SDP
+bash detection_and_avoidance/run_avoidance.sh
+```
+
+After the first successful build, skip rebuilding with:
+
+```bash
+bash detection_and_avoidance/run_avoidance.sh --no-build
+```
+
 Keep the driven wheels off the ground on the first run. Press Ctrl+C to stop.
 The watchdog also stops and centres the car when scans are missing for 0.5 s.
 
