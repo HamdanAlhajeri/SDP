@@ -1,0 +1,47 @@
+[2.046s] Invoking command in '/home/fasty/Desktop/SDP/detection_and_avoidance': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/detection_and_avoidance build --build-base /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build install --record /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/install.log --install-scripts $base/lib/detection_and_avoidance --single-version-externally-managed install_data
+[2.666s] running egg_info
+[2.666s] creating build/detection_and_avoidance/detection_and_avoidance.egg-info
+[2.712s] writing build/detection_and_avoidance/detection_and_avoidance.egg-info/PKG-INFO
+[2.713s] writing dependency_links to build/detection_and_avoidance/detection_and_avoidance.egg-info/dependency_links.txt
+[2.713s] writing entry points to build/detection_and_avoidance/detection_and_avoidance.egg-info/entry_points.txt
+[2.714s] writing requirements to build/detection_and_avoidance/detection_and_avoidance.egg-info/requires.txt
+[2.714s] writing top-level names to build/detection_and_avoidance/detection_and_avoidance.egg-info/top_level.txt
+[2.714s] writing manifest file 'build/detection_and_avoidance/detection_and_avoidance.egg-info/SOURCES.txt'
+[2.810s] reading manifest file 'build/detection_and_avoidance/detection_and_avoidance.egg-info/SOURCES.txt'
+[2.812s] writing manifest file 'build/detection_and_avoidance/detection_and_avoidance.egg-info/SOURCES.txt'
+[2.812s] running build
+[2.812s] running build_py
+[2.812s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build
+[2.814s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib
+[2.815s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance
+[2.815s] copying detection_and_avoidance/avoid_obstacles.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance
+[2.815s] copying detection_and_avoidance/planner.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance
+[2.815s] copying detection_and_avoidance/vesc_driver.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance
+[2.816s] copying detection_and_avoidance/__init__.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance
+[2.818s] running install
+[2.828s] running install_lib
+[2.878s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance
+[2.878s] copying /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance/avoid_obstacles.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance
+[2.878s] copying /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance/planner.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance
+[2.879s] copying /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance/vesc_driver.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance
+[2.879s] copying /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build/lib/detection_and_avoidance/__init__.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance
+[2.880s] byte-compiling /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance/avoid_obstacles.py to avoid_obstacles.cpython-312.pyc
+[2.883s] byte-compiling /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance/planner.py to planner.cpython-312.pyc
+[2.884s] byte-compiling /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance/vesc_driver.py to vesc_driver.cpython-312.pyc
+[2.886s] byte-compiling /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance/__init__.py to __init__.cpython-312.pyc
+[2.886s] running install_data
+[2.887s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/ament_index
+[2.887s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/ament_index/resource_index
+[2.887s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/ament_index/resource_index/packages
+[2.887s] copying resource/detection_and_avoidance -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/ament_index/resource_index/packages
+[2.887s] copying package.xml -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/detection_and_avoidance
+[2.888s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/detection_and_avoidance/launch
+[2.888s] copying launch/avoidance.launch.py -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/detection_and_avoidance/launch
+[2.888s] creating /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/detection_and_avoidance/config
+[2.888s] copying config/avoidance.yaml -> /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/share/detection_and_avoidance/config
+[2.888s] running install_egg_info
+[2.940s] Copying build/detection_and_avoidance/detection_and_avoidance.egg-info to /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages/detection_and_avoidance-0.1.0-py3.12.egg-info
+[2.942s] running install_scripts
+[3.259s] Installing avoid_obstacles script to /home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/detection_and_avoidance
+[3.260s] writing list of installed files to '/home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/install.log'
+[3.347s] Invoked command in '/home/fasty/Desktop/SDP/detection_and_avoidance' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/fasty/Desktop/SDP/detection_and_avoidance/install/detection_and_avoidance/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/detection_and_avoidance build --build-base /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/build install --record /home/fasty/Desktop/SDP/detection_and_avoidance/build/detection_and_avoidance/install.log --install-scripts $base/lib/detection_and_avoidance --single-version-externally-managed install_data

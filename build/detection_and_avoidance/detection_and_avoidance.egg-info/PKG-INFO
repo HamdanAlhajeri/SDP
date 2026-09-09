@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: detection-and-avoidance
+Version: 0.1.0
+Summary: Reactive Hokuyo lidar obstacle avoidance with VESC control.
+Maintainer: SDP Team
+Maintainer-email: maintainer@example.com
+License: MIT

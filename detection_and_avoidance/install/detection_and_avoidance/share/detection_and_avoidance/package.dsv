@@ -1,0 +1,6 @@
+source;share/detection_and_avoidance/hook/pythonpath.ps1
+source;share/detection_and_avoidance/hook/pythonpath.dsv
+source;share/detection_and_avoidance/hook/pythonpath.sh
+source;share/detection_and_avoidance/hook/ament_prefix_path.ps1
+source;share/detection_and_avoidance/hook/ament_prefix_path.dsv
+source;share/detection_and_avoidance/hook/ament_prefix_path.sh

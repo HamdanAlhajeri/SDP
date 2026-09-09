@@ -1,0 +1,17 @@
+[2.830s] Invoking command in '/home/fasty/Desktop/SDP/build/detection_and_avoidance': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/fasty/Desktop/SDP/build/detection_and_avoidance/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/fasty/Desktop/SDP/build/detection_and_avoidance/build --no-deps symlink_data
+[3.602s] running develop
+[4.094s] running egg_info
+[4.141s] writing detection_and_avoidance.egg-info/PKG-INFO
+[4.141s] writing dependency_links to detection_and_avoidance.egg-info/dependency_links.txt
+[4.142s] writing entry points to detection_and_avoidance.egg-info/entry_points.txt
+[4.142s] writing requirements to detection_and_avoidance.egg-info/requires.txt
+[4.143s] writing top-level names to detection_and_avoidance.egg-info/top_level.txt
+[4.240s] reading manifest file 'detection_and_avoidance.egg-info/SOURCES.txt'
+[4.241s] writing manifest file 'detection_and_avoidance.egg-info/SOURCES.txt'
+[4.294s] running build_ext
+[4.294s] Creating /home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/python3.12/site-packages/detection-and-avoidance.egg-link (link to .)
+[4.295s] Installing avoid_obstacles script to /home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/detection_and_avoidance
+[4.296s] 
+[4.296s] Installed /home/fasty/Desktop/SDP/build/detection_and_avoidance
+[4.296s] running symlink_data
+[4.402s] Invoked command in '/home/fasty/Desktop/SDP/build/detection_and_avoidance' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/fasty/Desktop/SDP/build/detection_and_avoidance/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/fasty/Desktop/SDP/build/detection_and_avoidance/build --no-deps symlink_data

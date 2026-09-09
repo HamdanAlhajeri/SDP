@@ -1,0 +1,17 @@
+package.xml
+setup.cfg
+setup.py
+config/avoidance.yaml
+detection_and_avoidance/__init__.py
+detection_and_avoidance/avoid_obstacles.py
+detection_and_avoidance/planner.py
+detection_and_avoidance/vesc_driver.py
+detection_and_avoidance.egg-info/PKG-INFO
+detection_and_avoidance.egg-info/SOURCES.txt
+detection_and_avoidance.egg-info/dependency_links.txt
+detection_and_avoidance.egg-info/entry_points.txt
+detection_and_avoidance.egg-info/requires.txt
+detection_and_avoidance.egg-info/top_level.txt
+detection_and_avoidance.egg-info/zip-safe
+launch/avoidance.launch.py
+resource/detection_and_avoidance
