@@ -1,0 +1,28 @@
+[3.315s] Invoking command in '/home/fasty/Desktop/SDP/build/detection_and_avoidance': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/fasty/Desktop/SDP/build/detection_and_avoidance/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/fasty/Desktop/SDP/build/detection_and_avoidance/build --no-deps symlink_data
+[4.097s] running develop
+[4.586s] running egg_info
+[4.587s] creating detection_and_avoidance.egg-info
+[4.633s] writing detection_and_avoidance.egg-info/PKG-INFO
+[4.634s] writing dependency_links to detection_and_avoidance.egg-info/dependency_links.txt
+[4.634s] writing entry points to detection_and_avoidance.egg-info/entry_points.txt
+[4.635s] writing requirements to detection_and_avoidance.egg-info/requires.txt
+[4.635s] writing top-level names to detection_and_avoidance.egg-info/top_level.txt
+[4.635s] writing manifest file 'detection_and_avoidance.egg-info/SOURCES.txt'
+[4.733s] reading manifest file 'detection_and_avoidance.egg-info/SOURCES.txt'
+[4.734s] writing manifest file 'detection_and_avoidance.egg-info/SOURCES.txt'
+[4.787s] running build_ext
+[4.787s] Creating /home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/python3.12/site-packages/detection-and-avoidance.egg-link (link to .)
+[4.789s] Installing avoid_obstacles script to /home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/detection_and_avoidance
+[4.789s] 
+[4.789s] Installed /home/fasty/Desktop/SDP/build/detection_and_avoidance
+[4.790s] running symlink_data
+[4.790s] creating /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/ament_index
+[4.790s] creating /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/ament_index/resource_index
+[4.790s] creating /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/ament_index/resource_index/packages
+[4.791s] symbolically linking /home/fasty/Desktop/SDP/build/detection_and_avoidance/resource/detection_and_avoidance -> /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/ament_index/resource_index/packages
+[4.791s] symbolically linking /home/fasty/Desktop/SDP/build/detection_and_avoidance/package.xml -> /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/detection_and_avoidance
+[4.791s] creating /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/detection_and_avoidance/launch
+[4.791s] symbolically linking /home/fasty/Desktop/SDP/build/detection_and_avoidance/launch/avoidance.launch.py -> /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/detection_and_avoidance/launch
+[4.791s] creating /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/detection_and_avoidance/config
+[4.792s] symbolically linking /home/fasty/Desktop/SDP/build/detection_and_avoidance/config/avoidance.yaml -> /home/fasty/Desktop/SDP/install/detection_and_avoidance/share/detection_and_avoidance/config
+[4.897s] Invoked command in '/home/fasty/Desktop/SDP/build/detection_and_avoidance' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/fasty/Desktop/SDP/build/detection_and_avoidance/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/fasty/Desktop/SDP/install/detection_and_avoidance/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/fasty/Desktop/SDP/build/detection_and_avoidance/build --no-deps symlink_data

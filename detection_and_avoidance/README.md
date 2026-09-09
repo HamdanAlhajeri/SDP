@@ -29,8 +29,9 @@ ros2 launch detection_and_avoidance avoidance.launch.py
 ```
 
 Alternatively, after starting the Hokuyo driver, use the included runner from
-the project root. It builds the package, checks `/scan` and `/dev/vesc`, stops
-the teleoperation service while avoidance is running, and restarts it on exit:
+the project root. It builds the package, checks `/scan` and the VESC serial
+device (`/dev/vesc`, falling back to `/dev/ttyACM0`), stops the teleoperation
+service while avoidance is running, and restarts it on exit:
 
 ```bash
 cd ~/SDP

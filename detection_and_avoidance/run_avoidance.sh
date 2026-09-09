@@ -25,7 +25,7 @@ fi
 
 # ROS_DISTRO is normally set after sourcing ROS. Use Humble as the Jetson
 # default, while still allowing: ROS_DISTRO=jazzy ./run_avoidance.sh
-ROS_VERSION="${ROS_DISTRO:-humble}"
+ROS_VERSION="${ROS_DISTRO:-jazzy}"
 ROS_SETUP="/opt/ros/${ROS_VERSION}/setup.bash"
 
 if [[ ! -f "${ROS_SETUP}" ]]; then
@@ -56,14 +56,21 @@ set +u
 source "${WORKSPACE_SETUP}"
 set -u
 
-if [[ ! -e /dev/vesc ]]; then
-    echo "ERROR: /dev/vesc does not exist." >&2
-    echo "Check the VESC USB cable and udev configuration." >&2
+VESC_PORT=/dev/vesc
+if [[ ! -e "${VESC_PORT}" && -e /dev/ttyACM0 ]]; then
+    VESC_PORT=/dev/ttyACM0
+    echo "WARNING: /dev/vesc does not exist; using ${VESC_PORT}." >&2
+fi
+
+if [[ ! -e "${VESC_PORT}" ]]; then
+    echo "ERROR: No VESC serial device was found at /dev/vesc or /dev/ttyACM0." >&2
+    echo "The USB device may be present without the cdc_acm serial driver." >&2
+    echo "Check: ls -l /dev/ttyACM*" >&2
     exit 1
 fi
 
-if [[ ! -r /dev/vesc || ! -w /dev/vesc ]]; then
-    echo "ERROR: The current user cannot access /dev/vesc." >&2
+if [[ ! -r "${VESC_PORT}" || ! -w "${VESC_PORT}" ]]; then
+    echo "ERROR: The current user cannot access ${VESC_PORT}." >&2
     echo "Add the user to dialout, then log out and back in:" >&2
     echo "  sudo usermod -aG dialout \$USER" >&2
     exit 1
