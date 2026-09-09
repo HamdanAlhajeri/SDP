@@ -11,6 +11,17 @@ def clamp(value, low, high):
     return max(low, min(high, value))
 
 
+def ramp_current(commanded, target, elapsed, launch_current, ramp_rate):
+    """Ramp current increases while applying reductions immediately."""
+    if target <= 0.0:
+        return 0.0
+    if commanded <= 0.0:
+        return min(target, launch_current)
+    if target <= commanded:
+        return target
+    return min(target, commanded + ramp_rate * max(0.0, elapsed))
+
+
 def sector_distance(scan, start_angle, end_angle):
     """Return a robust near distance for a scan angle sector, in metres."""
     samples = []

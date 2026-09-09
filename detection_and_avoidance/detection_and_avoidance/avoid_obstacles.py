@@ -1,13 +1,14 @@
 """ROS 2 node for simple, conservative reactive obstacle avoidance."""
 
 import math
+import time
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 
-from .planner import choose_command, sector_distance
+from .planner import choose_command, ramp_current, sector_distance
 from .vesc_driver import DEFAULT_PORT, VESC
 
 
@@ -20,8 +21,10 @@ class AvoidObstacles(Node):
         self.declare_parameter('side_angle_deg', 65.0)
         self.declare_parameter('stop_distance', 0.75)
         self.declare_parameter('clear_distance', 1.8)
-        self.declare_parameter('forward_current', 8.0)
-        self.declare_parameter('avoid_current', 4.0)
+        self.declare_parameter('forward_current', 80.0)
+        self.declare_parameter('avoid_current', 40.0)
+        self.declare_parameter('launch_current', 5.0)
+        self.declare_parameter('current_ramp_rate', 22.0)
         self.declare_parameter('steer_range', 0.25)
         self.declare_parameter('scan_timeout', 0.5)
 
@@ -30,11 +33,24 @@ class AvoidObstacles(Node):
         if stop <= 0.0 or clear <= stop:
             raise ValueError('Require 0 < stop_distance < clear_distance')
 
+        forward_current = self.get_parameter('forward_current').value
+        avoid_current = self.get_parameter('avoid_current').value
+        launch_current = self.get_parameter('launch_current').value
+        ramp_rate = self.get_parameter('current_ramp_rate').value
+        if min(forward_current, avoid_current) < 0.0:
+            raise ValueError('Motor target currents cannot be negative')
+        if launch_current <= 0.0:
+            raise ValueError('launch_current must be positive')
+        if ramp_rate <= 0.0:
+            raise ValueError('current_ramp_rate must be positive')
+
         port = self.get_parameter('vesc_port').value
         self.vesc = VESC(port)
         self.vesc.stop()
         self.last_scan_time = None
         self.last_state = None
+        self.commanded_current = 0.0
+        self.last_command_time = time.monotonic()
 
         topic = self.get_parameter('scan_topic').value
         self.subscription = self.create_subscription(
@@ -52,20 +68,28 @@ class AvoidObstacles(Node):
         right = sector_distance(scan, -side_angle, -front_half)
 
         if not math.isfinite(front):
-            self.vesc.stop()
+            self._stop_car()
             self._log_state('no_valid_front_scan', front, left, right)
             self.last_scan_time = self.get_clock().now()
             return
 
-        servo, current, state = choose_command(
+        servo, target_current, state = choose_command(
             front, left, right,
             self.get_parameter('stop_distance').value,
             self.get_parameter('clear_distance').value,
             self.get_parameter('steer_range').value,
             self.get_parameter('forward_current').value,
             self.get_parameter('avoid_current').value)
+
+        now = time.monotonic()
+        elapsed = min(now - self.last_command_time, 0.1)
+        self.last_command_time = now
+        self.commanded_current = ramp_current(
+            self.commanded_current, target_current, elapsed,
+            self.get_parameter('launch_current').value,
+            self.get_parameter('current_ramp_rate').value)
         self.vesc.set_servo_pos(servo)
-        self.vesc.set_current(current)
+        self.vesc.set_current(self.commanded_current)
         self.last_scan_time = self.get_clock().now()
         self._log_state(state, front, left, right)
 
@@ -76,12 +100,18 @@ class AvoidObstacles(Node):
                 (state, front, left, right))
             self.last_state = state
 
+    def _stop_car(self):
+        """Stop immediately and reset the acceleration ramp."""
+        self.commanded_current = 0.0
+        self.last_command_time = time.monotonic()
+        self.vesc.stop()
+
     def watchdog_callback(self):
         timeout = self.get_parameter('scan_timeout').value
         if (self.last_scan_time is None or
                 (self.get_clock().now() - self.last_scan_time).nanoseconds /
                 1e9 > timeout):
-            self.vesc.stop()
+            self._stop_car()
             if self.last_state != 'scan_timeout':
                 self.get_logger().warning('No recent lidar scan; car stopped')
                 self.last_state = 'scan_timeout'

@@ -2,7 +2,7 @@ import math
 from types import SimpleNamespace
 
 from detection_and_avoidance.planner import (
-    choose_command, sector_distance)
+    choose_command, ramp_current, sector_distance)
 
 
 def test_clear_path_drives_forward():
@@ -36,3 +36,13 @@ def test_sector_ignores_invalid_ranges():
         range_max=10.0,
         ranges=[math.inf, 1.0, math.nan, 2.0, 3.0])
     assert sector_distance(scan, -math.pi / 2, 0.0) == 1.0
+
+
+def test_current_starts_at_launch_level_then_ramps():
+    assert ramp_current(0.0, 80.0, 0.02, 5.0, 22.0) == 5.0
+    assert ramp_current(5.0, 80.0, 1.0, 5.0, 22.0) == 27.0
+
+
+def test_current_reduction_and_stop_are_immediate():
+    assert ramp_current(80.0, 40.0, 0.02, 5.0, 22.0) == 40.0
+    assert ramp_current(40.0, 0.0, 0.02, 5.0, 22.0) == 0.0

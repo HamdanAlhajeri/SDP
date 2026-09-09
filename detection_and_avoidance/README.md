@@ -51,6 +51,11 @@ Tune `config/avoidance.yaml` at low speed. `forward_current` and
 turns toward the wrong side, change the signs of both steering direction uses
 in `choose_command`, or reverse the steering servo direction in VESC Tool.
 
+The current configuration targets 80 A on a clear path and immediately drops
+to 40 A while avoiding. From rest, it starts at `launch_current: 5.0` and ramps
+upward at `current_ramp_rate: 22.0` A/s. Reductions are immediate, and a blocked
+path or lidar watchdog event commands 0 A and resets the ramp.
+
 The algorithm assumes zero radians in `/scan` points straight forward and
 positive angles point left. Verify the lidar orientation before enabling the
 motor.

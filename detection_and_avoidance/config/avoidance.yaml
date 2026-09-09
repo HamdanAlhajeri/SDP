@@ -6,7 +6,9 @@ avoid_obstacles:
     side_angle_deg: 65.0
     stop_distance: 0.75
     clear_distance: 1.8
-    forward_current: 8.0
-    avoid_current: 4.0
+    forward_current: 80.0
+    avoid_current: 40.0
+    launch_current: 5.0
+    current_ramp_rate: 22.0
     steer_range: 0.25
     scan_timeout: 0.5
